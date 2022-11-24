@@ -1,0 +1,154 @@
+---
+- hosts: all
+  strategy: free
+  vars:
+
+    dest_base_dir: "/home/ec2-user"
+    dest_repo_dir: "{{ dest_base_dir }}/everde_backend"
+    dest_certs_dir: "{{ dest_repo_dir }}/config/jwt"
+    mysql_data_volume_dir: "{{ dest_repo_dir }}/.docker/data/db"
+
+
+  tasks:
+
+    - name: 'Check if project directory already exists'
+      stat:
+        path: "{{ dest_base_dir }}"
+      register: checked_file
+
+
+    - name: 'Value when checked_file not exists'
+      debug:
+        var: checked_file
+      when: checked_file is defined and not checked_file.stat.exists
+
+
+    - name: 'Create project directory'
+      file:
+        path: "{{ dest_base_dir }}"
+        state: directory
+        #owner: root
+        #group: root
+        mode: 0755
+      when: checked_file.stat.exists is defined and not checked_file.stat.exists
+
+
+    - name: "Clone or update repo version"
+      git:
+        repo: 'git@ttivgitlab01.teralco.local:solutions/desarrollo/e-verde/e-verde-back.git'
+        dest: "{{ dest_repo_dir }}"
+        version: release
+        force: yes
+
+    - name: 'Check if config/jwt exists'
+      stat:
+        path: "{{ dest_certs_dir }}"
+      register: checked_certs_dir
+
+    - name: 'mkdir del directorio jwt'
+      file:
+        path: "{{ dest_certs_dir }}"
+        state: directory
+        #owner: root
+        #group: root
+        mode: 0755
+      when: checked_certs_dir.stat.exists is defined and not checked_certs_dir.stat.exists
+
+    - name: 'Check if .docker/data/db exists'
+      stat:
+        path: "{{ mysql_data_volume_dir }}"
+      register: checked_data_dir
+
+    - name: 'Create directory .docker/data/db if not exists'
+      file:
+        path: "{{ mysql_data_volume_dir }}"
+        state: directory
+        #owner: "${USER}"
+        #group: "${USER}"
+        mode: 0755
+      when: checked_data_dir.stat.exists is defined and not checked_data_dir.stat.exists
+
+    - name: 'Check if private cert exists'
+      stat:
+        path: "{{ dest_certs_dir }}/private.pem"
+      register: checked_private_cert
+
+    - name: "Create private cert"
+      shell: |
+        openssl genpkey -out private.pem -aes256 -algorithm rsa -pkeyopt rsa_keygen_bits:4096 -pass pass:${JWT_PASSPHRASE}
+      args:
+        chdir: "{{ dest_certs_dir }}"
+      when: checked_private_cert.stat.exists is defined and not checked_private_cert.stat.exists
+
+    - name: 'Check if private cert exists'
+      stat:
+        path: "{{ dest_certs_dir }}/public.pem"
+      register: checked_public_cert
+
+    - name: "Create public cert"
+      shell: |
+        openssl pkey -in private.pem -out public.pem -pubout -passin pass:${JWT_PASSPHRASE}
+      args:
+        chdir: "{{ dest_certs_dir }}"
+      when: checked_public_cert.stat.exists is defined and not checked_public_cert.stat.exists
+
+    #- name: Ansible create .env.local file
+    #  copy:
+    #    dest: "{{ dest_repo_dir }}/.env.local"
+    #    content: |
+    #      ###> lexik/jwt-authentication-bundle ###
+    #      JWT_PASSPHRASE=${JWT_PASSPHRASE}
+    #      ###< lexik/jwt-authentication-bundle ###
+    #      MYSQL_DATABASE=${MYSQL_DATABASE}
+    #      MYSQL_USER=${MYSQL_USER}
+    #      MYSQL_PASSWORD=${MYSQL_PASSWORD}
+    #      MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+    #      DATABASE_URL="mysql://${MYSQL_USER}:${MYSQL_PASSWORD}@mysql:3306/${MYSQL_DATABASE}?serverVersion=5.7"
+    #      REDIS_URL=${REDIS_URL}
+
+    - name: "Ansible create rewrite .env"
+      copy:
+        src: "${ENV_STAGING}"
+        dest: "{{ dest_repo_dir }}/.env"
+
+    - name: "Run docker-compose"
+      shell: |
+        docker-compose --file docker-compose-staging.yml up --build -d
+      args:
+        chdir: "{{ dest_repo_dir }}"
+
+    - name: "Run composer install"
+      shell: |
+        docker-compose --file docker-compose-staging.yml exec php symfony composer install --no-dev --optimize-autoloader
+      args:
+        chdir: "{{ dest_repo_dir }}"
+
+    - name: "Run Clear Cache"
+      shell: |
+        docker-compose --file docker-compose-staging.yml exec php symfony console cache:clear
+      args:
+        chdir: "{{ dest_repo_dir }}"
+
+    - name: "Run composer autoload"
+      shell: |
+        docker-compose --file docker-compose-staging.yml exec php symfony composer dump-autoload --no-dev --classmap-authoritative
+      args:
+        chdir: "{{ dest_repo_dir }}"
+
+    #- name: "Update Schema"
+    #  shell: |
+    #    docker-compose --file docker-compose-staging.yml exec php symfony console doctrine:schema:update --force
+    #  args:
+    #    chdir: "{{ dest_repo_dir }}"
+
+    - name: "Run migrations"
+      shell: |
+        docker-compose --file docker-compose-staging.yml exec php symfony console --env=staging --no-interaction doctrine:migrations:migrate
+      args:
+        chdir: "{{ dest_repo_dir }}"
+
+    - name: "Create swagger.json"
+      shell: |
+        docker-compose --file docker-compose-staging.yml exec php make doc
+      args:
+        chdir: "{{ dest_repo_dir }}"
