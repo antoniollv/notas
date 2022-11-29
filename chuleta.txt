@@ -1,0 +1,112 @@
+22C7Ljir8Hrm7sA -> jenkins
+c119bcb0-70af-4aa5-b2b5-76f39310622a
+EKx3e9q4jUqT7L9 -> admin nexus -> Practica final y4TVBGM9ruVf3C8 usuario jenkins4sonar y sonar
+
+token sqa_d274589b6a5b31bd5d59481b5769f9a6d345bcc5
+
+
+EKx3e9q4jUqT7L9 -> jenkinsbootcamp nexus
+
+uk7LAUeU922xm6S -> alledodev Credentials
+
+
+docker run -d --name=nodo-java -p 22:22 --network minikube \
+-e "JENKINS_AGENT_SSH_PUBKEY=ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDJ8dl5T62rdUMx+diE+j9Lk0PjLSfrB2PbBYsqHo0Wqdbbku/ZrJLjetoCiBiIoSV8syB4b3VHfztKtRwDEqbiB4RUJhZ+O5Nt5mZ75Nou41Ukto2BOnzXbmR4GoNz7H/CR2ZWoyQ8CdHJDTveCeoIKA5fTn6utJxhayjef1AmG11mSFa7H56ShJSoAo3ObzL7Ld3D6vAkWoXJ4Wu4jalYLU0o4lTo+4R8GgBwoOiC6Ik5xcSE4lX4U4zGEm+bs/fv5w+byYamsRHCLQ4Gh81uc2ePkKWrZpgG7LNTxWdlPVgVYpBAbedj16upl3oKlsrEEoXBsZs37lrL8u/6YUD4qmxwhAgPjYI40REUA0TANcKEbDEnsUJr3LuhGP4UgKROcAwaDurFb5mbOygr3eEjty0gFM7lgNWt9dpbMWxbPDadlv6X0Zq7P0boF9qExmmNBcpYvqnvXSw/x67TNeCnYLWnVKGbp/4+1uUJZhSz8tO0X3eXS9NGHqL4eYMjJbE= jenkins@636ddfa23623" \
+--env DOCKER_HOST=tcp://docker:2376 \
+--env DOCKER_CERT_PATH --env DOCKER_TLS_VERIFY=1 \
+--volume jenkins-data:/var/jenkins_home \
+--volume jenkins-docker-certs:/certs/client:ro \
+devcenter/jenkins-nodo-java-bootcamp:1.0
+
+
+docker run --name jenkins-docker --detach \
+--privileged --network javaprofile --network-alias docker \
+--env DOCKER_TLS_CERTDIR=/certs \
+--volume jenkins-docker-certs:/certs/client \
+--volume jenkins-data:/var/jenkins_home \
+--publish 2376:2376 \
+docker:dind --storage-driver overlay2
+
+docker run --name jenkins --detach \
+--network javaprofile --env DOCKER_HOST=tcp://docker:2376 \
+--env DOCKER_CERT_PATH=/certs/client --env DOCKER_TLS_VERIFY=1 \
+--publish 8080:8080 --publish 50000:50000 \
+--volume jenkins-data:/var/jenkins_home \
+--volume jenkins-docker-certs:/certs/client:ro \
+devcenter/jenkins-bootcamp:1.0
+
+
+
+minikube --memory 4096 --cpus 2 start --vm-driver=docker -p jenkins
+helm upgrade --install jenkins jenkins/jenkins -n jenkins -f helm/jenkins-values.yaml --namespace jenkins-project
+
+Password admin/a1RPtx0jonp3mvkvhoEb4D Jenkins practica final
+http://192.168.49.2:32000/login
+
+echo -n alledodev:uk7LAUeU922xm6S | base64 > docker.base64.txt
+
+AUTH=$(echo -n "${DOCKER_USERNAME}:${DOCKER_PASSWORD}" | base64)
+cat << EOF > config.json
+{
+    "auths": {
+        "https://index.docker.io/v1/": {
+            "auth": "YWxsZWRvZGV2OnVrN0xBVWVVOTIyeG02Uw=="
+        }
+    }
+}
+
+
+
+kubectl create secret generic kaniko-secret --from-file=.json --namespace=jenkins-project
+
+NOTAS instación nexus
+helm repo add sonatype https://sonatype.github.io/helm3-charts/
+
+helm install mynexus sonatype/nexus-repository-manager --namespace=jenkins-project --values ./values-nexus-repository-manager.yaml
+export POD_NAME=$(kubectl get pods --namespace jenkins-project -l "app.kubernetes.io/name=nexus-repository-manager,app.kubernetes.io/instance=mynexus" -o jsonpath="{.items[0].metadata.name}")
+kubectl --namespace jenkins-project port-forward $POD_NAME 8081:8081
+
+"host": [
+						"192.168.88.222:8080",
+						"lhr",
+						"life"
+
+
+minikube mount ./data:/data/jenkins-volume --profile jenkins
+
+
+kubectl port-forward spring-boot-app-58dbcfd897-g7dg6 8080:8080 --address=192.168.88.222
+
+
+kubectl port-forward $POD_NAME 8085:8081 -n jenkins-project
+export POD_NAME=$(kubectl get pods --namespace jenkins-project -l "app.kubernetes.io/name=nexus-repository-manager,app.kubernetes.io/instance=mynexus" -o jsonpath="{.items[0].metadata.name}")
+
+kubectl port-forward $POD_NAME 9000:9000 -n jenkins-project
+export POD_NAME=$(kubectl get pods --namespace jenkins-project -l "app=sonarqube,release=sonarqube" -o jsonpath="{.items[0].metadata.name}")
+
+helm upgrade --install nexus sonatype/nexus-repository-manager -n nexus -f values-nexus-repository-manager.yaml --namespace jenkins-project
+
+10.101.33.36
+
+docker run -d --name postgresql \
+  --env ALLOW_EMPTY_PASSWORD=yes \
+  --env POSTGRESQL_USERNAME=bn_sonarqube \
+  --env POSTGRESQL_PASSWORD=bitnami \
+  --env POSTGRESQL_DATABASE=bitnami_sonarqube \
+  --network jenkins \
+  --volume postgresql_data:/bitnami/postgresql \
+  bitnami/postgresql:latest
+
+
+docker run -d --name sonarqube \
+  -p 8080:8080 -p 8443:8443 \
+  --env ALLOW_EMPTY_PASSWORD=yes \
+  --env SONARQUBE_DATABASE_USER=bn_sonarqube \
+  --env SONARQUBE_DATABASE_PASSWORD=bitnami \
+  --env SONARQUBE_DATABASE_NAME=bitnami_sonarqube \
+  --network jenkins \
+  --volume sonarqube_data:/bitnami/sonarqube \
+  bitnami/sonarqube:latest
+
+squ_b654bd03ae4ddbd43a45066c70eae38db222ed32
+
